@@ -48,7 +48,7 @@ key rm deepseek_api_key           # 删掉
 | `key list` | 列出键名（按名排序） | `key list` |
 | `key list -l` | 附带创建/修改时间、备注名 | `key list -l` |
 | `key get <名>` | 打印值，**只输出值**；不存在退出码 1 | `key get github_token` |
-| `key copy <名>` | 把值复制到系统剪贴板（Wayland/X11/mac 自动探测） | `key copy github_token` |
+| `key copy <名>` | 把值复制到系统剪贴板（每平台各自的原生方式，见下） | `key copy github_token` |
 | `key info <名>` | 值 + 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
 | `key set <名>=<值>` | 新增或更新（**原地更新**，不产生重复行） | `key set foo=bar` |
 | `key rm <名>` | 删除条目**及它的备注** | `key rm foo` |
@@ -62,7 +62,23 @@ key rm deepseek_api_key           # 删掉
 
 **读操作用 `key get`，看全貌用 `key info`。**
 
-`key copy` 复制**原始值**（不带尾部换行）；剪贴板工具按顺序探测：`$KEY_CLIPBOARD` 覆盖 → `wl-copy`（Wayland）→ `xclip`/`xsel`（X11）→ `pbcopy`（macOS）。装 `key copy` 时同时会装 bash tab 补全（`~/.local/share/bash-completion/completions/key`），新 shell 里 `key <Tab>` 可补子命令、`key copy <Tab>` 补键名。
+`key copy` 复制**原始值**（不带尾部换行）；剪贴板方式**按平台分文件编译**（GOOS 决定，不会跨平台误调）：
+
+| 平台 | 用的工具 |
+|---|---|
+| Linux / BSD | Wayland `wl-copy` → X11 `xclip` → `xsel`（按会话环境探测） |
+| macOS | `pbcopy`（系统自带） |
+| Windows | `clip.exe`（系统自带） |
+
+任何时候都可用 `KEY_CLIPBOARD` 覆盖整套探测，指向自己的工具：
+
+```sh
+KEY_CLIPBOARD="xclip -selection clipboard" key copy foo
+# Windows 上需要非 ASCII 精确时（clip.exe 走控制台代码页）
+KEY_CLIPBOARD="powershell -NoProfile -Command Set-Clipboard" key copy foo
+```
+
+`install.sh` 会同时装 bash tab 补全（`~/.local/share/bash-completion/completions/key`），新 shell 里 `key <Tab>` 可补子命令、`key copy <Tab>` 补键名（补全是 bash 脚本，Windows 原生命令行不适用）。
 
 ---
 
@@ -210,12 +226,27 @@ deepseek_api_key=sk-xxx
 
 ```
 ~/Projects/secrets/
-├── secrets.go         库：解析 / 修改 / 保留注释地重写
-├── secrets_test.go    格式解析测试
-├── metadata_test.go   元数据、删除、备份快照测试
-├── cmd/key/main.go    CLI
-├── install.sh         安装脚本
+├── secrets.go              库：解析 / 修改 / 保留注释地重写
+├── secrets_test.go         格式解析测试
+├── metadata_test.go        元数据、删除、备份快照测试
+├── cmd/key/main.go         CLI
+├── cmd/key/clipboard.go        剪贴板入口 + KEY_CLIPBOARD 覆盖 + exec 助手
+├── cmd/key/clipboard_unix.go   Linux/BSD: wl-copy / xclip / xsel
+├── cmd/key/clipboard_darwin.go macOS: pbcopy
+├── cmd/key/clipboard_windows.go Windows: clip.exe
+├── completions/key.bash    bash tab 补全
+├── install.sh              安装脚本（构建 + 补全）
 └── README.md
+```
+
+### 跨平台构建
+
+剪贴板按 GOOS 分文件（`//go:build linux || ...` / `darwin` / `windows`），普通 `go build` 就是对的；交叉编译也不需要 cgo 或额外依赖：
+
+```sh
+GOOS=windows GOARCH=amd64 go build -o key.exe ./cmd/key
+GOOS=darwin  GOARCH=arm64 go build -o key-mac ./cmd/key
+GOOS=linux   GOARCH=arm64 go build -o key-arm64 ./cmd/key
 ```
 
 ```sh

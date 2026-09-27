@@ -2,10 +2,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -185,34 +183,6 @@ func cmdGet(path string, args []string) {
 	fmt.Println(e.Value)
 }
 
-// clipboardCmd returns the command (and args) that reads a value from stdin
-// and puts it on the system clipboard. Detection order: KEY_CLIPBOARD override,
-// wl-copy (Wayland), xclip/xsel (X11), pbcopy (macOS).
-func clipboardCmd() (bin string, args []string, err error) {
-	if c := strings.TrimSpace(os.Getenv("KEY_CLIPBOARD")); c != "" {
-		parts := strings.Fields(c)
-		return parts[0], parts[1:], nil
-	}
-	session := os.Getenv("XDG_SESSION_TYPE")
-	if os.Getenv("WAYLAND_DISPLAY") != "" || session == "wayland" {
-		if p, e := exec.LookPath("wl-copy"); e == nil {
-			return p, nil, nil
-		}
-	}
-	if os.Getenv("DISPLAY") != "" {
-		if p, e := exec.LookPath("xclip"); e == nil {
-			return p, []string{"-selection", "clipboard"}, nil
-		}
-		if p, e := exec.LookPath("xsel"); e == nil {
-			return p, []string{"--clipboard", "--input"}, nil
-		}
-	}
-	if p, e := exec.LookPath("pbcopy"); e == nil {
-		return p, nil, nil
-	}
-	return "", nil, errors.New("no clipboard tool found (want wl-copy, xclip, xsel or pbcopy; set KEY_CLIPBOARD to override)")
-}
-
 func cmdCopy(path string, args []string) {
 	if len(args) != 1 {
 		usageError("usage: key copy <name>")
@@ -223,19 +193,8 @@ func cmdCopy(path string, args []string) {
 		fmt.Fprintf(os.Stderr, "key: %q not found in %s\n", args[0], path)
 		os.Exit(1)
 	}
-	bin, binArgs, err := clipboardCmd()
-	if err != nil {
-		fatal("%v", err)
-	}
-	cmd := exec.Command(bin, binArgs...)
-	cmd.Stdin = strings.NewReader(e.Value)
-	// Stdout must NOT be a pipe: wl-copy forks a long-lived child to serve the
-	// selection, and a forked child that inherits a pipe keeps it open, which
-	// would make Output/CombinedOutput block forever. nil Stdout -> /dev/null.
-	cmd.Stdout = nil
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fatal("clipboard %s: %v", bin, err)
+	if err := writeClipboard(e.Value); err != nil {
+		fatal("clipboard: %v", err)
 	}
 	fmt.Printf("copied %s (%d chars)\n", e.Name, len(e.Value))
 }
