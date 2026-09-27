@@ -254,3 +254,9 @@ go test ./...     # 跑测试
 gofmt -l .        # 应为空
 ./install.sh      # 安装
 ```
+
+---
+
+## 许可证
+
+[AGPL-3.0](LICENSE)（GNU Affero General Public License v3.0）。
