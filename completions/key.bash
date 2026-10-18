@@ -36,7 +36,11 @@ _key_complete() {
             COMPREPLY=( $(compgen -W "$names" -- "$cur") $(compgen -W "$(printf '%s\n' $names | sed 's/$/=/')" -- "$cur") )
             ;;
         list|ls)
-            COMPREPLY=( $(compgen -W "-l --long --all" -- "$cur") )
+            if [[ "$prev" == "--sort" ]]; then
+                COMPREPLY=( $(compgen -W "name created modified" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -W "-l --long --all --sort" -- "$cur") )
+            fi
             ;;
         backfill)
             COMPREPLY=( )

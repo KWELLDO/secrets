@@ -42,7 +42,9 @@ func usage() {
 
 Usage:
   key path                          print the secrets file path
-  key list [-l|--long]              list key names (with -l: dates and notes)
+  key list [-l|--long]              list key names; the long form (dates and
+                                    notes) is the default on a terminal
+  key list --sort created|modified  sort by that date, oldest first
   key get <name>                    print the value of <name> (exit 1 if absent)
   key copy <name>                   copy the value of <name> to the clipboard
   key info <name>                   print value, dates and notes of <name>
@@ -145,21 +147,36 @@ func noteLabels(notes []secrets.Note) string {
 
 func cmdList(path string, args []string) {
 	long := false
-	for _, a := range args {
-		switch a {
-		case "-l", "--long", "--all":
+	sortKey := "name"
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-l" || a == "--long" || a == "--all":
 			long = true
+		case a == "--sort":
+			if i+1 >= len(args) {
+				usageError("list: --sort needs one of name|created|modified")
+			}
+			sortKey = args[i+1]
+			i++
+		case strings.HasPrefix(a, "--sort="):
+			sortKey = strings.TrimPrefix(a, "--sort=")
 		default:
 			usageError("list: unexpected argument %q", a)
 		}
 	}
+	if sortKey != "name" && sortKey != "created" && sortKey != "modified" {
+		usageError("list: unknown --sort key %q (want name, created or modified)", sortKey)
+	}
 
 	f := load(path)
-	entries := f.SortedEntries()
+	entries := sortedFor(f.Entries(), sortKey)
 	if len(entries) == 0 {
 		return
 	}
-	if !long {
+	// On a terminal the long form is the default; piped output stays a bare
+	// list of names so scripts keep working.
+	if !long && !isTerminal(os.Stdout) {
 		for _, e := range entries {
 			fmt.Println(e.Name)
 		}
@@ -168,10 +185,18 @@ func cmdList(path string, args []string) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tCREATED\tMODIFIED\tNOTES")
+	stale := 0
 	for _, e := range entries {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Name, ts(e.Created), ts(e.Modified), noteLabels(e.Notes))
+		cell := modifiedCell(e, time.Now())
+		if strings.HasSuffix(cell, "!") {
+			stale++
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Name, dateCell(e.Created), cell, noteLabels(e.Notes))
 	}
 	w.Flush()
+	if stale > 0 {
+		fmt.Fprintf(os.Stderr, "! = not modified for over %d days\n", int(staleAfter/(24*time.Hour)))
+	}
 }
 
 func cmdGet(path string, args []string) {

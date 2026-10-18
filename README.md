@@ -45,8 +45,9 @@ key rm deepseek_api_key           # 删掉
 | 命令 | 说明 | 例子 |
 |---|---|---|
 | `key path` | 打印密钥文件路径 | `key path` |
-| `key list` | 列出键名（按名排序） | `key list` |
-| `key list -l` | 附带创建/修改时间、备注名 | `key list -l` |
+| `key list` | 列出键名（按名排序）。终端上默认显示长表格；管道里只输出裸键名，脚本契约不变 | `key list` |
+| `key list -l` | 附创建/修改时间（含相对时间，如 `32d ago`）+ 备注标签；超 90 天未修改的条目在修改列标 `!` | `key list -l` |
+| `key list --sort modified` | 按修改时间排序（最旧在前，方便找该轮换的 key）；`--sort` 可选 `name` / `created` / `modified` | `key list --sort modified` |
 | `key get <名>` | 打印值，**只输出值**；不存在退出码 1 | `key get github_token` |
 | `key copy <名>` | 把值复制到系统剪贴板（Wayland/X11/mac 自动探测） | `key copy github_token` |
 | `key info <名>` | 值 + 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
@@ -123,8 +124,8 @@ key backfill "2026-08-09 19:55:50"     # 也可只写 2026-08-09
 **④ 月度检查：哪些密钥很久没动 / 都挂在什么地址上**
 
 ```sh
-key list -l                             # 看时间列和备注列
-key list -l | awk '$3 < "2026-06"'      # 按修改时间筛
+key list --sort modified                # 最旧在前，! 标记 90 天未动的
+key list -l | head                      # 管道里也强制长表格
 ```
 
 ---
