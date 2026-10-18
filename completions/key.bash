@@ -31,8 +31,9 @@ _key_complete() {
             [[ $COMP_CWORD -eq 2 ]] && COMPREPLY=( $(compgen -W "$names" -- "$cur") )
             ;;
         set)
-            # set name=value — offer existing names with a trailing '='
-            COMPREPLY=( $(compgen -W "$(printf '%s\n' $names | sed 's/$/=/')" -- "$cur") )
+            # set name[=value] — offer existing names both bare (value from
+            # stdin) and with a trailing '=' (inline value)
+            COMPREPLY=( $(compgen -W "$names" -- "$cur") $(compgen -W "$(printf '%s\n' $names | sed 's/$/=/')" -- "$cur") )
             ;;
         list|ls)
             COMPREPLY=( $(compgen -W "-l --long --all" -- "$cur") )

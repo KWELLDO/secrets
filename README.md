@@ -50,7 +50,8 @@ key rm deepseek_api_key           # 删掉
 | `key get <名>` | 打印值，**只输出值**；不存在退出码 1 | `key get github_token` |
 | `key copy <名>` | 把值复制到系统剪贴板（Wayland/X11/mac 自动探测） | `key copy github_token` |
 | `key info <名>` | 值 + 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
-| `key set <名>=<值>` | 新增或更新（**原地更新**，不产生重复行） | `key set foo=bar` |
+| `key set <名>=<值>` | 新增或更新（**原地更新**，不产生重复行）。值直接写行内 | `key set foo=bar` |
+| `key set <名>` | 同上，但值从 stdin 读：终端下**隐藏输入，不进 shell history**；管道则读一行（去掉尾部换行） | `wl-paste \| key set foo` |
 | `key rm <名>` | 删除条目**及它的备注** | `key rm foo` |
 | `key note <名>` | 列出该条的备注 | `key note dsh` |
 | `key note <名> <标签>=<值>` | 加/改备注 | 见下 |
@@ -100,7 +101,8 @@ notes:
 **① 新加一个 API key，并记下它的 base_url / 账号**
 
 ```sh
-key set kling_access_key=AQf3xxxx
+key set kling_access_key=AQf3xxxx       # 行内写值（会留在 shell history）
+wl-paste | key set kling_access_key     # 或从剪贴板读，值不进 history
 key note kling_access_key base_url=https://api.klingai.com
 key note kling_access_key account=我的账号
 ```
@@ -188,7 +190,7 @@ deepseek_api_key=sk-xxx
   所以密钥必须能被"以你身份运行的任何进程"拿到——加密只挡得住"文件被拷走"，挡不住本机进程。
 - **真正的风险不是这个文件，而是密钥被复制出去。** 实际踩到的坑：
   - ❌ **把密钥硬编码进源码，然后推到公开仓库** —— 曾有两个公开仓库因此泄露活密钥
-  - ❌ 密钥被写进对话/工具日志、编辑器历史、`~/.bash_history`
+  - ❌ 密钥被写进对话/工具日志、编辑器历史、`~/.bash_history`（`key set foo=bar` 会把值留在 history；从剪贴板或文件管道给 `key set foo` 可避免）
   - ❌ 把密钥拷到 `~/Documents`、Obsidian 库等会被同步/备份的地方
 - **轮换是唯一能让所有历史副本一次性失效的手段**。散落在 300+ 个日志里的旧值，
   改一处配置是清不掉的，但换个新 key，旧值全部作废。

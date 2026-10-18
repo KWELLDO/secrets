@@ -47,6 +47,8 @@ Usage:
   key copy <name>                   copy the value of <name> to the clipboard
   key info <name>                   print value, dates and notes of <name>
   key set <name>=<value>            create or update an entry
+  key set <name>                    same, taking the value from stdin
+                                    (terminal: hidden prompt, never in history)
   key rm <name>                     delete an entry (and its notes)
   key note <name>                   list the notes of <name>
   key note <name> <label>=<value>   add or replace a note
@@ -286,14 +288,33 @@ func splitAssignment(arg string) (name, value string) {
 
 func cmdSet(path string, args []string) {
 	if len(args) != 1 {
-		usageError("usage: key set <name>=<value>")
+		usageError("usage: key set <name>[=<value>]")
 	}
-	name, value := splitAssignment(args[0])
+	var name, value string
+	if a, v, ok := strings.Cut(args[0], "="); ok {
+		name, value = strings.TrimSpace(a), v
+		if name == "" {
+			usageError("invalid argument %q (want name=value)", args[0])
+		}
+	} else {
+		// No '=': the value comes from stdin (hidden prompt on a terminal).
+		// Validate the name before prompting so no secret is typed in vain.
+		name = strings.TrimSpace(args[0])
+		if err := secrets.ValidateName(name); err != nil {
+			fatal("%v", err)
+		}
+		var err error
+		value, err = readSecretValue(name)
+		if err != nil {
+			fatal("%v", err)
+		}
+	}
 	f := load(path)
 	if _, err := f.Set(name, value, time.Now()); err != nil {
 		fatal("%v", err)
 	}
 	save(f)
+	fmt.Printf("set %s (%d chars)\n", name, len(value))
 }
 
 func cmdRm(path string, args []string) {
