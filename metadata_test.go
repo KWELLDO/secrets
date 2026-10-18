@@ -328,3 +328,48 @@ func TestNewFileCreatesFromScratch(t *testing.T) {
 		t.Errorf("a = %q", v)
 	}
 }
+
+// Restore re-adds a deleted entry with timestamps and notes intact; its
+// lines land at the end of the file and the old metadata lines do not
+// duplicate.
+func TestRestoreRoundTrip(t *testing.T) {
+	f := parseString(t, "a=1\nb=2\n#@meta b created=2020-01-01T00:00:00+08:00 modified=2020-01-02T00:00:00+08:00\n#@note b note=keep me\n")
+	e := f.Entry("b")
+	snapshot := RenderEntry(e)
+	if !f.Delete("b") {
+		t.Fatal("Delete(b) = false")
+	}
+	tf, err := ParseFile(strings.NewReader(string(snapshot)))
+	if err != nil {
+		t.Fatalf("snapshot must parse as a secrets file: %v", err)
+	}
+	restored := tf.Entries()
+	if len(restored) != 1 {
+		t.Fatalf("snapshot entries = %d, want 1", len(restored))
+	}
+	if err := f.Restore(*restored[0]); err != nil {
+		t.Fatalf("Restore() = %v", err)
+	}
+	got := string(f.Bytes())
+	want := "a=1\nb=2\n#@meta b created=2020-01-01T00:00:00+08:00 modified=2020-01-02T00:00:00+08:00\n#@note b note=keep me\n"
+	if got != want {
+		t.Errorf("Bytes() =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestRestoreExistingFails(t *testing.T) {
+	f := parseString(t, "a=1\n")
+	if err := f.Restore(Entry{Name: "a", Value: "x"}); err == nil {
+		t.Error("Restore over an existing name should fail")
+	}
+}
+
+func TestRenderEntryIncludesMetadata(t *testing.T) {
+	e := &Entry{Name: "k", Value: "v", Created: t0, Modified: t0}
+	e.Notes = []Note{{Label: "base_url", Value: "https://x"}}
+	got := string(RenderEntry(e))
+	want := "k=v\n#@meta k created=2026-09-14T12:00:00+08:00 modified=2026-09-14T12:00:00+08:00\n#@note k base_url=https://x\n"
+	if got != want {
+		t.Errorf("RenderEntry() =\n%q\nwant\n%q", got, want)
+	}
+}

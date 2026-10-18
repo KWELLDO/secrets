@@ -51,7 +51,9 @@ Usage:
   key set <name>=<value>            create or update an entry
   key set <name>                    same, taking the value from stdin
                                     (terminal: hidden prompt, never in history)
-  key rm <name>                     delete an entry (and its notes)
+  key rm [-y] <name>                delete an entry (and its notes);
+                                    on a terminal this asks for confirmation
+  key undo                          restore the entry deleted last
   key note <name>                   list the notes of <name>
   key note <name> <label>=<value>   add or replace a note
   key unnote <name> <label>         remove a note
@@ -343,15 +345,38 @@ func cmdSet(path string, args []string) {
 }
 
 func cmdRm(path string, args []string) {
-	if len(args) != 1 {
-		usageError("usage: key rm <name>")
+	yes := false
+	names := make([]string, 0, 1)
+	for _, a := range args {
+		switch a {
+		case "-y", "--yes":
+			yes = true
+		default:
+			names = append(names, a)
+		}
+	}
+	if len(names) != 1 {
+		usageError("usage: key rm [-y] <name>")
 	}
 	f := load(path)
-	if !f.Delete(args[0]) {
-		fmt.Fprintf(os.Stderr, "key: %q not found in %s\n", args[0], path)
+	e := f.Entry(names[0])
+	if e == nil {
+		fmt.Fprintf(os.Stderr, "key: %q not found in %s\n", names[0], path)
 		os.Exit(1)
 	}
+	// Interactive terminals confirm first; scripts and -y delete at once.
+	if !yes && isTerminal(os.Stdin) && !confirmDelete(e) {
+		fmt.Fprintln(os.Stderr, "aborted")
+		os.Exit(1)
+	}
+	// Snapshot before deleting, so a failed save never loses the entry
+	// without a way back.
+	if err := writeTrash(path, secrets.RenderEntry(e)); err != nil {
+		fatal("snapshot: %v", err)
+	}
+	f.Delete(names[0])
 	save(f)
+	fmt.Printf("deleted %s (%d chars; key undo restores it)\n", e.Name, len(e.Value))
 }
 
 func cmdNote(path string, args []string) {
@@ -470,6 +495,8 @@ func main() {
 		cmdUnnote(path, args[1:])
 	case "backfill":
 		cmdBackfill(path, args[1:])
+	case "undo":
+		cmdUndo(path, args[1:])
 	case "help", "-h", "--help":
 		usage()
 	default:

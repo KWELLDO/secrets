@@ -406,6 +406,19 @@ func (f *File) Delete(name string) bool {
 	return true
 }
 
+// Restore re-adds an entry with its timestamps and notes preserved, exactly
+// as given (used by `key undo`). It fails when the name already exists, so a
+// newly re-created entry is never silently overwritten.
+func (f *File) Restore(e Entry) error {
+	if _, ok := f.index[e.Name]; ok {
+		return fmt.Errorf("entry %q already exists", e.Name)
+	}
+	f.index[e.Name] = &e
+	f.entries = append(f.entries, &e)
+	delete(f.deleted, e.Name)
+	return nil
+}
+
 // SetNote adds or replaces a note on an existing entry and bumps Modified.
 func (f *File) SetNote(name, label, value string, now time.Time) error {
 	e, ok := f.index[name]
@@ -534,6 +547,15 @@ func writeEntry(b *strings.Builder, e *Entry) {
 		b.WriteString(n.Value)
 		b.WriteByte('\n')
 	}
+}
+
+// RenderEntry renders one entry in the file format: the name=value line
+// followed by its #@meta and #@note lines. Used to snapshot entries before
+// deleting them, so `key undo` can restore the original bytes.
+func RenderEntry(e *Entry) []byte {
+	var b strings.Builder
+	writeEntry(&b, e)
+	return []byte(b.String())
 }
 
 // Save writes the file atomically (temp file + rename) with mode 0600.

@@ -10,7 +10,7 @@ _key_complete() {
 
     # First word after `key`: the subcommand.
     if [[ $COMP_CWORD -eq 1 ]]; then
-        COMPREPLY=( $(compgen -W "path list ls get copy cp info meta show describe set rm del delete unset note notes unnote backfill help" -- "$cur") )
+        COMPREPLY=( $(compgen -W "path list ls get copy cp info meta show describe set rm del delete unset note notes unnote backfill undo help" -- "$cur") )
         return
     fi
 
@@ -18,9 +18,17 @@ _key_complete() {
     names="$(key list 2>/dev/null)"
 
     case "$sub" in
-        get|copy|cp|info|meta|show|describe|rm|del|delete|unset)
+        get|copy|cp|info|meta|show|describe)
             # exactly one key name
             [[ $COMP_CWORD -eq 2 ]] && COMPREPLY=( $(compgen -W "$names" -- "$cur") )
+            ;;
+        rm|del|delete|unset)
+            # rm [-y] <name>
+            if [[ $COMP_CWORD -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "-y --yes $names" -- "$cur") )
+            elif [[ $COMP_CWORD -eq 3 && ( "${COMP_WORDS[2]}" == "-y" || "${COMP_WORDS[2]}" == "--yes" ) ]]; then
+                COMPREPLY=( $(compgen -W "$names" -- "$cur") )
+            fi
             ;;
         note|notes)
             # note <name> [label=value]

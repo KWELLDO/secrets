@@ -53,7 +53,8 @@ key rm deepseek_api_key           # 删掉
 | `key info <名>` | 值 + 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
 | `key set <名>=<值>` | 新增或更新（**原地更新**，不产生重复行）。值直接写行内 | `key set foo=bar` |
 | `key set <名>` | 同上，但值从 stdin 读：终端下**隐藏输入，不进 shell history**；管道则读一行（去掉尾部换行） | `wl-paste \| key set foo` |
-| `key rm <名>` | 删除条目**及它的备注** | `key rm foo` |
+| `key rm <名>` | 删除条目**及它的备注**。终端上先确认（`-y` 跳过），删前自动快照到 `<密钥文件>.trash` | `key rm foo` |
+| `key undo` | 恢复上一条被 `rm` 删除的条目（值、时间、备注一并还原），成功后清空快照 | `key undo` |
 | `key note <名>` | 列出该条的备注 | `key note dsh` |
 | `key note <名> <标签>=<值>` | 加/改备注 | 见下 |
 | `key unnote <名> <标签>` | 删单条备注 | `key unnote dsh account` |
