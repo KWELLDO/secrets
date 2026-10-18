@@ -42,8 +42,9 @@ func usage() {
 
 Usage:
   key path                          print the secrets file path
-  key list [-l|--long]              list key names; the long form (dates and
-                                    notes) is the default on a terminal
+  key list [-l|--long]              list key names; on a terminal a
+                                    name+notes table is shown, -l adds the
+                                    date columns (like ls -l)
   key list --sort created|modified  sort by that date, oldest first
   key get <name>                    print the value of <name> (exit 1 if absent)
   key copy <name>                   copy the value of <name> to the clipboard
@@ -189,6 +190,16 @@ func cmdList(path string, args []string) {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if !long {
+		// Default table: names and notes; the dates stay out of the way
+		// until -l, like ls.
+		fmt.Fprintln(w, "NAME\tNOTES")
+		for _, e := range entries {
+			fmt.Fprintf(w, "%s\t%s\n", e.Name, noteLabels(e.Notes))
+		}
+		w.Flush()
+		return
+	}
 	fmt.Fprintln(w, "NAME\tCREATED\tMODIFIED\tNOTES")
 	stale := 0
 	for _, e := range entries {
