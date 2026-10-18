@@ -47,7 +47,10 @@ Usage:
   key list --sort created|modified  sort by that date, oldest first
   key get <name>                    print the value of <name> (exit 1 if absent)
   key copy <name>                   copy the value of <name> to the clipboard
-  key info <name>                   print value, dates and notes of <name>
+  key info [-v] <name>              print value (masked by default), dates
+                                    and notes of <name>; -v reveals the value
+  key search <text>                 find entries by name or notes (values are
+                                    never shown); no match: silent, exit 1
   key set <name>=<value>            create or update an entry
   key set <name>                    same, taking the value from stdin
                                     (terminal: hidden prompt, never in history)
@@ -269,32 +272,6 @@ func cmdCopy(path string, args []string) {
 	fmt.Printf("copied %s (%d chars)\n", e.Name, len(e.Value))
 }
 
-func cmdInfo(path string, args []string) {
-	if len(args) != 1 {
-		usageError("usage: key info <name>")
-	}
-	f := load(path)
-	e := f.Entry(args[0])
-	if e == nil {
-		fmt.Fprintf(os.Stderr, "key: %q not found in %s\n", args[0], path)
-		os.Exit(1)
-	}
-	fmt.Printf("name:      %s\n", e.Name)
-	fmt.Printf("value:     %s\n", e.Value)
-	fmt.Printf("created:   %s\n", dateCell(e.Created))
-	fmt.Printf("modified:  %s\n", dateCell(e.Modified))
-	if len(e.Notes) == 0 {
-		fmt.Printf("notes:     -\n")
-		return
-	}
-	fmt.Printf("notes:\n")
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, n := range e.Notes {
-		fmt.Fprintf(w, "  %s\t%s\n", n.Label, n.Value)
-	}
-	w.Flush()
-}
-
 func dateCell(t time.Time) string {
 	if t.IsZero() {
 		return "- (unknown)"
@@ -485,6 +462,8 @@ func main() {
 		cmdCopy(path, args[1:])
 	case "info", "meta", "show", "describe":
 		cmdInfo(path, args[1:])
+	case "search", "find":
+		cmdSearch(path, args[1:])
 	case "set":
 		cmdSet(path, args[1:])
 	case "rm", "del", "delete", "unset":

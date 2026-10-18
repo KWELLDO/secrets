@@ -10,7 +10,7 @@ _key_complete() {
 
     # First word after `key`: the subcommand.
     if [[ $COMP_CWORD -eq 1 ]]; then
-        COMPREPLY=( $(compgen -W "path list ls get copy cp info meta show describe set rm del delete unset note notes unnote backfill undo help" -- "$cur") )
+        COMPREPLY=( $(compgen -W "path list ls get copy cp info meta show describe search find set rm del delete unset note notes unnote backfill undo help" -- "$cur") )
         return
     fi
 

@@ -50,7 +50,8 @@ key rm deepseek_api_key           # 删掉
 | `key list --sort modified` | 按修改时间排序（最旧在前，方便找该轮换的 key）；`--sort` 可选 `name` / `created` / `modified` | `key list --sort modified` |
 | `key get <名>` | 打印值，**只输出值**；不存在退出码 1 | `key get github_token` |
 | `key copy <名>` | 把值复制到系统剪贴板（Wayland/X11/mac 自动探测） | `key copy github_token` |
-| `key info <名>` | 值 + 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
+| `key info <名>` | 值（默认打码，`-v` 看全文）+ 创建/修改时间（含"32d ago"）+ 备注 | `key info dsh` |
+| `key search <词>` | 按名称 / 备注标签 / 备注值检索（不区分大小写，**永不匹配或打印值**）；无匹配静默退出 1 | `key search deepseek` |
 | `key set <名>=<值>` | 新增或更新（**原地更新**，不产生重复行）。值直接写行内 | `key set foo=bar` |
 | `key set <名>` | 同上，但值从 stdin 读：终端下**隐藏输入，不进 shell history**；管道则读一行（去掉尾部换行） | `wl-paste \| key set foo` |
 | `key rm <名>` | 删除条目**及它的备注**。终端上先确认（`-y` 跳过），删前自动快照到 `<密钥文件>.trash` | `key rm foo` |
@@ -89,7 +90,7 @@ key note github_token note="读权限即可，2026-09 换过"
 
 ```
 name:      dsh
-value:     sk-4b42…
+value:     sk-4b4… (32 chars)
 created:   2026-08-09 19:55:50 (32d ago)
 modified:  2026-09-10 20:34:41 (3m ago)
 notes:
@@ -126,7 +127,7 @@ key backfill "2026-08-09 19:55:50"     # 也可只写 2026-08-09
 
 ```sh
 key list --sort modified                # 最旧在前，! 标记 90 天未动的
-key list -l | head                      # 管道里也强制长表格
+key search api.deepseek.com             # 哪些 key 挂在某个地址（不打印值）
 ```
 
 ---
